@@ -1,0 +1,5 @@
+{
+  "name": "AI YouTube Thumbnail Generator",
+  "description": "A web application that generates high-CTR YouTube thumbnails from text prompts and reference images using AI.",
+  "requestFramePermissions": []
+}
