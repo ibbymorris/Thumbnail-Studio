@@ -243,10 +243,31 @@ export async function generateThumbnail(config: GenerationConfig): Promise<strin
       emotion,
       emotionIntensity,
       pose,
-      overlayText
+      overlayText,
+      composition // New composition field
   } = config;
 
   try {
+    // Define layout instructions based on composition selection
+    let layoutInstructions = "";
+    switch (composition) {
+        case 'classic-right':
+            layoutInstructions = "COMPOSITION RULE: Place the Main Subject clearly on the RIGHT side of the frame (occupying roughly 40% width). Ensure they are looking towards the left. Leave the LEFT side of the image as open negative space (blurred background) suitable for text overlay.";
+            break;
+        case 'classic-left':
+            layoutInstructions = "COMPOSITION RULE: Place the Main Subject clearly on the LEFT side of the frame (occupying roughly 40% width). Ensure they are looking towards the right. Leave the RIGHT side of the image as open negative space (blurred background) suitable for text overlay.";
+            break;
+        case 'versus':
+            layoutInstructions = "COMPOSITION RULE: Split Screen / Versus Mode. Divide the image vertically down the middle with a visual separator (e.g., lightning bolt or line). Place the Main Subject on the Left and the Opposing Subject/Prop on the Right. High contrast separation between sides.";
+            break;
+        case 'object-center':
+            layoutInstructions = "COMPOSITION RULE: Center Focus. Place the Key Prop (or Subject) in the exact center of the frame, extremely large and in focus. The background should be symmetrical or radiating from the center.";
+            break;
+        default:
+            layoutInstructions = "COMPOSITION RULE: Use Rule of Thirds. Ensure the main subject is off-center to allow for visual balance.";
+    }
+
+
     // Construct a highly structured prompt for the model
     let systemDirectives = `Role: You are a world-class YouTube Thumbnail Designer known for high Click-Through Rates (CTR).
     Task: Create a single, high-impact thumbnail image.
@@ -254,6 +275,7 @@ export async function generateThumbnail(config: GenerationConfig): Promise<strin
     Design Specifications:
     - Aspect Ratio: Target ${aspectRatio || '16:9'}.
     - Style: ${style || 'Modern and Viral'}.
+    - **${layoutInstructions}**
     ${brandKit ? `- Brand Identity: Use ${brandKit.primaryColor} as the dominant accent color. Typography should appear ${brandKit.fontStyle}.` : ''}
     ${emotion ? `- Facial Expression: Subject must look ${emotion} (Intensity: ${emotionIntensity || 75}%). Exaggerate it for YouTube.` : ''}
     ${pose ? `- Subject Pose: ${pose}.` : ''}
@@ -264,7 +286,6 @@ export async function generateThumbnail(config: GenerationConfig): Promise<strin
     
     Constraints:
     - Make the subject pop from the background.
-    - Use rule of thirds.
     - Ensure text is readable on small screens.
     - High saturation and contrast.`;
 
@@ -294,7 +315,7 @@ export async function generateThumbnail(config: GenerationConfig): Promise<strin
     }
 
     if (subjectImageBytes) {
-         parts.push({ text: "Instructions: Use the person/character in the following image as the Main Subject of the thumbnail." });
+         parts.push({ text: "Instructions: The following image contains the reference for the Main Subject (e.g. the YouTuber). **CRITICAL: You MUST preserve the facial identity and likeness of the person in this reference image.** Do not generate a random person. However, you must transform their pose, facial expression, clothing, and lighting to strictly match the text description provided in the prompt. If the prompt says 'skeptical', make this specific person look skeptical." });
          parts.push({
             inlineData: {
               data: subjectImageBytes,
@@ -304,7 +325,7 @@ export async function generateThumbnail(config: GenerationConfig): Promise<strin
     }
 
     if (propImageBytes) {
-         parts.push({ text: "Instructions: Include the object in the following image as a key Prop in the thumbnail." });
+         parts.push({ text: "Instructions: The following image is the Key Prop (e.g. a specific product). Include this exact object in the final thumbnail. You may adjust its angle, lighting, or how it is being held to fit the composition, but do not change the object itself." });
          parts.push({
             inlineData: {
               data: propImageBytes,
@@ -383,4 +404,45 @@ export async function generateAsset(prompt: string, type: 'background' | 'subjec
         return `data:image/png;base64,${generatedPart.inlineData.data}`;
     }
     throw new Error("Failed to generate asset");
+}
+
+export async function analyzeThumbnailConcept(concept: string): Promise<{ subject: string, prop: string, background: string }> {
+  if (!process.env.API_KEY) {
+    // Fallback if no key, though app usually handles this earlier.
+    return { subject: '', prop: '', background: '' };
+  }
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+  const prompt = `Analyze this YouTube thumbnail concept: "${concept}".
+  Break it down into visual prompts for a generative AI.
+  1. Subject: Describe the main person or character (expression, clothing).
+  2. Prop: Describe the key object held or visible.
+  3. Background: Describe the setting/environment.
+  
+  Return JSON strictly: { "subject": "...", "prop": "...", "background": "..." }`;
+
+  try {
+      const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: { parts: [{ text: prompt }] },
+          config: {
+              responseMimeType: 'application/json',
+              responseSchema: {
+                  type: Type.OBJECT,
+                  properties: {
+                      subject: { type: Type.STRING },
+                      prop: { type: Type.STRING },
+                      background: { type: Type.STRING }
+                  }
+              }
+          }
+      });
+      
+      const text = response.text;
+      if (!text) return { subject: '', prop: '', background: '' };
+      return JSON.parse(text);
+  } catch (e) {
+      console.error("Concept analysis failed", e);
+      return { subject: '', prop: '', background: '' };
+  }
 }

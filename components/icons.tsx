@@ -203,3 +203,89 @@ export const ChatBubbleIcon = ({ className }: { className?: string }) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
   </svg>
 );
+
+// Layout Icons
+export const LayoutRightIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="2" y="4" width="20" height="16" rx="2" strokeOpacity="0.5" />
+    <rect x="12" y="4" width="10" height="16" rx="2" fill="currentColor" fillOpacity="0.2" />
+    <circle cx="17" cy="10" r="3" stroke="currentColor" />
+    <path d="M14 18c0-2.5 2-4 3-4s3 1.5 3 4" stroke="currentColor" />
+    <line x1="5" y1="8" x2="10" y2="8" stroke="currentColor" strokeWidth="2" />
+    <line x1="5" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="2" />
+  </svg>
+);
+
+export const LayoutLeftIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="2" y="4" width="20" height="16" rx="2" strokeOpacity="0.5" />
+    <rect x="2" y="4" width="10" height="16" rx="2" fill="currentColor" fillOpacity="0.2" />
+    <circle cx="7" cy="10" r="3" stroke="currentColor" />
+    <path d="M4 18c0-2.5 2-4 3-4s3 1.5 3 4" stroke="currentColor" />
+    <line x1="14" y1="8" x2="19" y2="8" stroke="currentColor" strokeWidth="2" />
+    <line x1="14" y1="12" x2="18" y2="12" stroke="currentColor" strokeWidth="2" />
+  </svg>
+);
+
+export const LayoutCenterIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="2" y="4" width="20" height="16" rx="2" strokeOpacity="0.5" />
+    <circle cx="12" cy="12" r="5" fill="currentColor" fillOpacity="0.2" stroke="currentColor" />
+    <line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+export const LayoutSplitIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="2" y="4" width="20" height="16" rx="2" strokeOpacity="0.5" />
+    <line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" strokeWidth="2" />
+    <path d="M5 14l3-3 3 3" stroke="currentColor" />
+    <path d="M15 10l3 3 3-3" stroke="currentColor" />
+    <circle cx="8.5" cy="10" r="2" stroke="currentColor" />
+    <circle cx="15.5" cy="14" r="2" stroke="currentColor" />
+  </svg>
+);
+
+export const ImageIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+    <circle cx="9" cy="9" r="2"/>
+    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+  </svg>
+);
+
+export const LockIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+
+export const UnlockIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+  </svg>
+);
+
+export const HeartIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+     <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+  </svg>
+);
+
+export const RefreshCwIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+    <path d="M21 3v5h-5" />
+    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+    <path d="M8 16H3v5" />
+  </svg>
+);
+
+export const ArrowRightIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+  </svg>
+);

@@ -1,59 +1,29 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ToolType, ThumbnailStyle, FileWithPreview, ToolData, GenerationConfig, AspectRatio, Emotion, BrandKit, InspirationItem, Layer, WizardMode, WizardStep, RemixAnalysis, RemixConfig, ThumbCopilotContext } from './types';
+import { ToolType, ThumbnailStyle, FileWithPreview, ToolData, GenerationConfig, AspectRatio, Emotion, BrandKit, InspirationItem, Layer, WizardMode, WizardStep, RemixAnalysis, RemixConfig, ThumbCopilotContext, CompositionType, VariantStrategy } from './types';
 import { 
     VideoIcon, SketchIcon, DrawVideoIcon, UploadIcon, StarIcon, 
     XIcon, DownloadIcon, DrawEditIcon,
     SoraIcon, BlankIcon, TextIcon, PaletteIcon, FaceIcon, TrendingIcon, LayersIcon, ArrowIcon, PlusIcon, MenuIcon, LinkIcon, MagicWandIcon, ChevronRight, ChevronLeft,
     SearchIcon, ImageDownIcon, ChevronLeftIcon, ChevronRightIcon
 } from './components/icons';
-import { generateThumbnail, fileToBase64, generateAsset, base64ToBlob, analyzeImage, cropImageFromBase64, extractElement, removeForeground } from './services/geminiService';
+import { generateThumbnail, fileToBase64, generateAsset, base64ToBlob, analyzeImage, cropImageFromBase64, extractElement, removeForeground, analyzeThumbnailConcept } from './services/geminiService';
 
 // New Wizard Components
 import { StepIdea } from './components/wizard/StepIdea';
 import { StepRemixAnalysis } from './components/wizard/StepRemixAnalysis';
 import { StepStage } from './components/wizard/StepStage';
-import { StepAction } from './components/wizard/StepAction';
+import { StepComposition } from './components/wizard/StepComposition';
 import { StepPolish } from './components/wizard/StepPolish';
 import { ThumbCopilot } from './components/copilot/ThumbCopilot';
 import { Button } from './components/ui/Shared';
 
+// Remix Studio
+import ThumbnailStudio from './components/remix/ThumbnailStudio';
+
 // ==========================================
 // === Data =================================
 // ==========================================
-
-const stylePresets: { id: ThumbnailStyle, title: string, description: string, imageUrl: string }[] = [
-    { 
-        id: 'reaction', 
-        title: 'Reaction', 
-        description: 'Shocked expressions, high contrast.',
-        imageUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=800&q=80' 
-    },
-    { 
-        id: 'gaming', 
-        title: 'Gaming', 
-        description: 'Neon lights, dark backgrounds.',
-        imageUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80'
-    },
-    { 
-        id: 'tech', 
-        title: 'Tech', 
-        description: 'Clean, bokeh, product focus.',
-        imageUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80'
-    },
-    { 
-        id: 'vlog', 
-        title: 'Vlog', 
-        description: 'Bright, natural, lifestyle.',
-        imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80' 
-    },
-    { 
-        id: 'minimalist', 
-        title: 'Minimal', 
-        description: 'Solid colors, bold type.',
-        imageUrl: 'https://images.unsplash.com/photo-1508780709619-79562169bc64?auto=format&fit=crop&w=800&q=80'
-    }
-];
 
 const trendingItems: InspirationItem[] = [
     {
@@ -87,71 +57,83 @@ const trendingItems: InspirationItem[] = [
 // ==========================================
 
 const App: React.FC = () => {
-    const [currentView, setCurrentView] = useState<'create' | 'templates' | 'studio' | 'grabber'>('create');
+    const [currentView, setCurrentView] = useState<'create' | 'templates' | 'studio' | 'grabber' | 'remix-studio'>('create');
     const [initialPrompt, setInitialPrompt] = useState<string>('');
     const [initialRemixLink, setInitialRemixLink] = useState<string>('');
+    const [remixImageUrl, setRemixImageUrl] = useState<string | null>(null);
 
     const handleTemplateSelect = (template: InspirationItem) => {
-        setInitialPrompt(template.promptTemplate);
-        setInitialRemixLink('');
-        setCurrentView('create');
+        // For templates, we might just grab the image URL and go to remix studio
+        setRemixImageUrl(template.imageUrl);
+        setCurrentView('remix-studio');
     };
 
-    const handleGrabberRemix = (link: string) => {
-        setInitialRemixLink(link);
-        setInitialPrompt('');
-        setCurrentView('create');
+    const handleGrabberRemix = (url: string) => {
+        // If it's a full YouTube link, we need to extract the ID to get the thumbnail
+        // If it's already a thumbnail URL, use it directly
+        let finalUrl = url;
+        if (!url.includes('img.youtube.com') && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+             const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+             const match = url.match(regExp);
+             if (match && match[2].length === 11) {
+                 finalUrl = `https://img.youtube.com/vi/${match[2]}/maxresdefault.jpg`;
+             }
+        }
+        setRemixImageUrl(finalUrl);
+        setCurrentView('remix-studio');
     }
     
     return (
       <div className="min-h-screen w-full bg-[#0b0b0b] text-[#f7f7f8] font-['Inter',sans-serif] flex flex-col overflow-hidden">
         {/* Top Navigation */}
-        <nav className="border-b border-[#ffffff0d] bg-[#0b0b0b] z-50 h-14 flex-shrink-0">
-          <div className="w-full h-full px-4 flex items-center justify-between">
-            <div className="flex items-center gap-8">
-                <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('create')}>
-                    <div className="size-7 rounded bg-gradient-to-br from-[#ff0000] to-[#cc0000] flex items-center justify-center shadow-lg shadow-red-900/20">
-                        <span className="text-white font-bold text-sm">S</span>
+        {currentView !== 'remix-studio' && (
+            <nav className="border-b border-[#ffffff0d] bg-[#0b0b0b] z-50 h-14 flex-shrink-0">
+            <div className="w-full h-full px-4 flex items-center justify-between">
+                <div className="flex items-center gap-8">
+                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('create')}>
+                        <div className="size-7 rounded bg-gradient-to-br from-[#ff0000] to-[#cc0000] flex items-center justify-center shadow-lg shadow-red-900/20">
+                            <span className="text-white font-bold text-sm">S</span>
+                        </div>
+                        <span className="font-['Space_Grotesk'] font-bold text-lg">Thumb.AI</span>
                     </div>
-                    <span className="font-['Space_Grotesk'] font-bold text-lg">Thumb.AI</span>
+                    
+                    <div className="flex items-center gap-1 bg-[#1c1e20] p-1 rounded-lg border border-[#ffffff0d]">
+                        <button 
+                            onClick={() => setCurrentView('create')}
+                            className={`px-4 py-1 text-xs font-bold rounded transition-all ${currentView === 'create' ? 'bg-[#0b0b0b] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                        >
+                            Create
+                        </button>
+                        <button 
+                            onClick={() => setCurrentView('templates')}
+                            className={`px-4 py-1 text-xs font-bold rounded transition-all ${currentView === 'templates' ? 'bg-[#0b0b0b] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                        >
+                            Templates
+                        </button>
+                        <button 
+                            onClick={() => setCurrentView('grabber')}
+                            className={`px-4 py-1 text-xs font-bold rounded transition-all ${currentView === 'grabber' ? 'bg-[#0b0b0b] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                        >
+                            Downloader
+                        </button>
+                        <button 
+                            onClick={() => setCurrentView('studio')}
+                            className={`px-4 py-1 text-xs font-bold rounded transition-all ${currentView === 'studio' ? 'bg-[#0b0b0b] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                        >
+                            Studio
+                        </button>
+                    </div>
                 </div>
-                
-                <div className="flex items-center gap-1 bg-[#1c1e20] p-1 rounded-lg border border-[#ffffff0d]">
-                    <button 
-                        onClick={() => setCurrentView('create')}
-                        className={`px-4 py-1 text-xs font-bold rounded transition-all ${currentView === 'create' ? 'bg-[#0b0b0b] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                    >
-                        Create
-                    </button>
-                    <button 
-                        onClick={() => setCurrentView('templates')}
-                        className={`px-4 py-1 text-xs font-bold rounded transition-all ${currentView === 'templates' ? 'bg-[#0b0b0b] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                    >
-                        Templates
-                    </button>
-                    <button 
-                        onClick={() => setCurrentView('grabber')}
-                        className={`px-4 py-1 text-xs font-bold rounded transition-all ${currentView === 'grabber' ? 'bg-[#0b0b0b] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                    >
-                        Downloader
-                    </button>
-                    <button 
-                        onClick={() => setCurrentView('studio')}
-                        className={`px-4 py-1 text-xs font-bold rounded transition-all ${currentView === 'studio' ? 'bg-[#0b0b0b] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                    >
-                        Studio
-                    </button>
-                </div>
-            </div>
 
-            <div className="flex items-center gap-3">
-                <div className="hidden md:flex items-center gap-2 text-[10px] font-medium text-gray-500 bg-[#1c1e20] px-2 py-1 rounded-full border border-[#ffffff0d]">
-                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                     Gemini 2.5 Active
+                <div className="flex items-center gap-3">
+                    <div className="hidden md:flex items-center gap-2 text-[10px] font-medium text-gray-500 bg-[#1c1e20] px-2 py-1 rounded-full border border-[#ffffff0d]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                        Gemini 2.5 Active
+                    </div>
                 </div>
             </div>
-          </div>
-        </nav>
+            </nav>
+        )}
         
         {/* Main Content Area */}
         <main className="flex-grow overflow-hidden relative">
@@ -167,6 +149,8 @@ const App: React.FC = () => {
                 <div className="h-full overflow-y-auto custom-scrollbar">
                     <GrabberView onRemix={handleGrabberRemix} />
                 </div>
+            ) : currentView === 'remix-studio' ? (
+                <ThumbnailStudio initialImageUrl={remixImageUrl} onBack={() => setCurrentView('create')} />
             ) : (
                 <StudioView />
             )}
@@ -184,6 +168,7 @@ const WizardView = ({ initialPrompt, initialRemixLink }: { initialPrompt?: strin
     const [currentStep, setCurrentStep] = useState<WizardStep>('idea');
     const [mode, setMode] = useState<WizardMode>('fromScratch');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isBrainstorming, setIsBrainstorming] = useState(false);
 
     // Step 1: Idea
     const [title, setTitle] = useState("");
@@ -207,15 +192,27 @@ const WizardView = ({ initialPrompt, initialRemixLink }: { initialPrompt?: strin
     const [bgImage, setBgImage] = useState<FileWithPreview | null>(null);
     const [bgGenPrompt, setBgGenPrompt] = useState('');
 
-    // Step 4: Action
+    // Merged Action State (Now part of Stage/Subject)
     const [emotion, setEmotion] = useState<Emotion | undefined>(undefined);
     const [emotionIntensity, setEmotionIntensity] = useState<number>(75);
     const [posePrompt, setPosePrompt] = useState('');
 
-    // Step 5: Polish
-    const [selectedStyle, setSelectedStyle] = useState<ThumbnailStyle>('reaction');
+    // Step 4 (New): Composition
+    const [composition, setComposition] = useState<CompositionType>('classic-right');
+
+    // Step 6: Polish
     const [aspectRatio, setAspectRatio] = useState<AspectRatio>('16:9');
     const [overlayText, setOverlayText] = useState('');
+    const [variantStrategy, setVariantStrategy] = useState<VariantStrategy>('mix');
+    const [generateShorts, setGenerateShorts] = useState(false);
+    const [style, setStyle] = useState<string>('Modern and Viral');
+    
+    // Brand Kit State
+    const [useBrandColors, setUseBrandColors] = useState(false);
+    const [brandKit, setBrandKit] = useState<BrandKit>({
+        primaryColor: '#E1306C', // Default specific color for demo
+        fontStyle: 'bold'
+    });
 
     // Refs for file inputs
     const subjectFileInputRef = useRef<HTMLInputElement>(null);
@@ -312,8 +309,8 @@ const WizardView = ({ initialPrompt, initialRemixLink }: { initialPrompt?: strin
 
             if (hydratedAnalysis.textBoxes.length > 0) setOverlayText(hydratedAnalysis.textBoxes[0].content);
             if (hydratedAnalysis.detectedEmotion) setEmotion(hydratedAnalysis.detectedEmotion as Emotion);
-
-            setCurrentStep('remixAnalysis');
+            
+            // Note: setCurrentStep removed from here to allow non-blocking transition
         } catch (error) {
             console.error("Analysis failed", error);
             alert("Failed to analyze image. Please ensure you have selected a valid API key.");
@@ -329,27 +326,66 @@ const WizardView = ({ initialPrompt, initialRemixLink }: { initialPrompt?: strin
         }
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (mode === 'remix' && currentStep === 'idea') {
             if (remixImage) {
-                performAnalysis();
+                setCurrentStep('remixAnalysis'); // Move step immediately
+                performAnalysis(); // Trigger analysis in background
             } else {
                 alert("Please select a thumbnail to remix first.");
             }
             return;
         }
 
+        // --- Concept Bridge Logic (From Scratch) - Non-Blocking Optimization ---
+        if (mode === 'fromScratch' && currentStep === 'idea') {
+            if (!ideaPrompt.trim()) {
+                alert("Please describe your idea first.");
+                return;
+            }
+
+            // Non-blocking brainstorming
+            setIsBrainstorming(true);
+            
+            // We check key but don't await brainstorming for the navigation
+            if (window.aistudio) {
+                 window.aistudio.hasSelectedApiKey().then(hasKey => {
+                    if (!hasKey) window.aistudio.openSelectKey();
+                 });
+            }
+
+            // Fire and forget (update state when ready)
+            analyzeThumbnailConcept(ideaPrompt).then(breakdown => {
+                 if (breakdown.subject) {
+                     setSubjectGenPrompt(breakdown.subject);
+                     setSubjectMode('generate');
+                 }
+                 if (breakdown.prop) {
+                     setPropGenPrompt(breakdown.prop);
+                     setPropMode('generate');
+                 }
+                 if (breakdown.background) {
+                     setBgGenPrompt(breakdown.background);
+                     setBgMode('generate');
+                 }
+                 setIsBrainstorming(false);
+            }).catch(e => {
+                console.error("Brainstorming failed", e);
+                setIsBrainstorming(false);
+            });
+        }
+
         const steps: WizardStep[] = mode === 'remix' 
-            ? ['idea', 'remixAnalysis', 'stage', 'action', 'polish']
-            : ['idea', 'stage', 'action', 'polish'];
+            ? ['idea', 'remixAnalysis', 'stage', 'composition', 'polish']
+            : ['idea', 'stage', 'composition', 'polish'];
         const idx = steps.indexOf(currentStep);
         if (idx < steps.length - 1) setCurrentStep(steps[idx + 1]);
     };
 
     const handleBack = () => {
         const steps: WizardStep[] = mode === 'remix' 
-            ? ['idea', 'remixAnalysis', 'stage', 'action', 'polish']
-            : ['idea', 'stage', 'action', 'polish'];
+            ? ['idea', 'remixAnalysis', 'stage', 'composition', 'polish']
+            : ['idea', 'stage', 'composition', 'polish'];
         const idx = steps.indexOf(currentStep);
         if (idx > 0) setCurrentStep(steps[idx - 1]);
     };
@@ -379,11 +415,15 @@ const WizardView = ({ initialPrompt, initialRemixLink }: { initialPrompt?: strin
                 propImageBytes: propBytes,
                 backgroundImageBytes: bgBytes,
                 overlayText,
-                style: selectedStyle,
                 aspectRatio,
                 emotion,
                 emotionIntensity,
-                pose: posePrompt
+                pose: posePrompt,
+                composition,
+                variantStrategy,
+                generateShorts,
+                style,
+                brandKit: useBrandColors ? brandKit : undefined
             };
 
             const url = await generateThumbnail(config);
@@ -407,20 +447,19 @@ const WizardView = ({ initialPrompt, initialRemixLink }: { initialPrompt?: strin
 
     const handleCopilotSuggestion = (type: string, value: any) => {
         if (type === 'overlayText') setOverlayText(value);
-        // Add other handlers
     };
 
     return (
         <div className="h-full flex flex-col max-w-7xl mx-auto px-4 pt-8 pb-4 relative">
             {/* Wizard Progress */}
              <div className="flex items-center justify-center gap-2 mb-12">
-                {['idea', 'remixAnalysis', 'stage', 'action', 'polish'].map((s) => {
+                {['idea', 'remixAnalysis', 'stage', 'composition', 'polish'].map((s) => {
                     // Hide remixAnalysis dot if not in remix mode
                     if (mode !== 'remix' && s === 'remixAnalysis') return null;
                     
                     const steps = mode === 'remix' 
-                        ? ['idea', 'remixAnalysis', 'stage', 'action', 'polish']
-                        : ['idea', 'stage', 'action', 'polish'];
+                        ? ['idea', 'remixAnalysis', 'stage', 'composition', 'polish']
+                        : ['idea', 'stage', 'composition', 'polish'];
                     const isActive = steps.indexOf(s as WizardStep) <= steps.indexOf(currentStep);
 
                     return (
@@ -449,6 +488,7 @@ const WizardView = ({ initialPrompt, initialRemixLink }: { initialPrompt?: strin
                             <StepIdea 
                                 mode={mode} setMode={setMode} title={title} setTitle={setTitle}
                                 ideaPrompt={ideaPrompt} setIdeaPrompt={setIdeaPrompt} onUpload={handleRemixAssetSelect}
+                                onNext={handleNext}
                             />
                         )}
                         {currentStep === 'remixAnalysis' && (
@@ -461,20 +501,30 @@ const WizardView = ({ initialPrompt, initialRemixLink }: { initialPrompt?: strin
                                 propMode={propMode} setPropMode={setPropMode} propImage={propImage} setPropImage={setPropImage} propGenPrompt={propGenPrompt} setPropGenPrompt={setPropGenPrompt}
                                 bgMode={bgMode} setBgMode={setBgMode} bgImage={bgImage} setBgImage={setBgImage} bgGenPrompt={bgGenPrompt} setBgGenPrompt={setBgGenPrompt}
                                 handleFile={handleFile} subjectRef={subjectFileInputRef} propRef={propFileInputRef} bgRef={bgFileInputRef}
+                                // Action Props (Merged)
+                                emotion={emotion} setEmotion={setEmotion}
+                                emotionIntensity={emotionIntensity} setEmotionIntensity={setEmotionIntensity}
+                                posePrompt={posePrompt} setPosePrompt={setPosePrompt}
+                                isBrainstorming={isBrainstorming}
                             />
                         )}
-                        {currentStep === 'action' && (
-                            <StepAction 
-                                mode={mode} emotion={emotion} setEmotion={setEmotion}
-                                emotionIntensity={emotionIntensity} setEmotionIntensity={setEmotionIntensity}
-                                posePrompt={posePrompt} setPosePrompt={setPosePrompt} remixAnalysis={remixAnalysis}
+                        {currentStep === 'composition' && (
+                            <StepComposition 
+                                mode={mode}
+                                composition={composition}
+                                setComposition={setComposition}
                             />
                         )}
                         {currentStep === 'polish' && (
                             <StepPolish 
                                 mode={mode} overlayText={overlayText} setOverlayText={setOverlayText}
-                                remixAnalysis={remixAnalysis} selectedStyle={selectedStyle} setSelectedStyle={setSelectedStyle}
-                                aspectRatio={aspectRatio} setAspectRatio={setAspectRatio} stylePresets={stylePresets}
+                                remixAnalysis={remixAnalysis}
+                                aspectRatio={aspectRatio} setAspectRatio={setAspectRatio} 
+                                variantStrategy={variantStrategy} setVariantStrategy={setVariantStrategy}
+                                generateShorts={generateShorts} setGenerateShorts={setGenerateShorts}
+                                style={style} setStyle={setStyle}
+                                useBrandColors={useBrandColors} setUseBrandColors={setUseBrandColors}
+                                brandKit={brandKit} setBrandKit={setBrandKit}
                             />
                         )}
                      </>
@@ -482,7 +532,7 @@ const WizardView = ({ initialPrompt, initialRemixLink }: { initialPrompt?: strin
             </div>
 
              {/* Footer Controls */}
-             {!generatedImageUrl && (
+             {!generatedImageUrl && currentStep !== 'idea' && (
                 <div className="fixed bottom-0 left-0 w-full bg-[#0b0b0b] border-t border-white/10 p-4 z-40">
                     <div className="max-w-5xl mx-auto flex justify-between items-center">
                         <Button variant="ghost" onClick={handleBack} disabled={currentStep === 'idea'}>
@@ -494,8 +544,11 @@ const WizardView = ({ initialPrompt, initialRemixLink }: { initialPrompt?: strin
                                 {isGenerating ? 'Generating Magic...' : 'Generate Magic ✨'}
                             </Button>
                         ) : (
-                            <Button variant="secondary" onClick={handleNext} disabled={isAnalyzing}>
-                                {isAnalyzing ? 'Analyzing...' : (currentStep === 'idea' && mode === 'remix' ? 'Next: Analyze' : 'Next')} <ChevronRightIcon className="w-5 h-5" />
+                            <Button variant="secondary" onClick={handleNext} disabled={isAnalyzing && mode === 'remix' && currentStep === 'remixAnalysis'}>
+                                {isAnalyzing && mode === 'remix' && currentStep === 'remixAnalysis'
+                                    ? 'Analyzing...' 
+                                    : (currentStep === 'idea' && mode === 'remix' ? 'Next: Analyze' : 'Next')
+                                } <ChevronRightIcon className="w-5 h-5" />
                             </Button>
                         )}
                     </div>
@@ -511,7 +564,7 @@ const WizardView = ({ initialPrompt, initialRemixLink }: { initialPrompt?: strin
 // === Grabber View =========================
 // ==========================================
 
-const GrabberView = ({ onRemix }: { onRemix: (link: string) => void }) => {
+const GrabberView = ({ onRemix }: { onRemix: (url: string) => void }) => {
     const [link, setLink] = useState('');
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
 
@@ -587,7 +640,7 @@ const GrabberView = ({ onRemix }: { onRemix: (link: string) => void }) => {
                         </a>
 
                         <button 
-                            onClick={() => onRemix(link)}
+                            onClick={() => onRemix(thumbnailUrl)}
                             className="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-[#1c1e20] to-[#2a1010] border border-[#ff0000]/30 rounded-2xl hover:border-[#ff0000] transition-all group"
                         >
                             <div className="w-16 h-16 bg-[#ff0000]/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -715,7 +768,6 @@ const StudioView = () => {
     // Input States
     const [bgPrompt, setBgPrompt] = useState('');
     const [subjectPrompt, setSubjectPrompt] = useState('');
-    const [propPrompt, setPropPrompt] = useState('');
     
     // Selection Logic
     const selectedLayer = layers.find(l => l.id === selectedLayerId);
@@ -730,7 +782,7 @@ const StudioView = () => {
     };
 
     const handleGenerateAsset = async (type: 'background' | 'subject' | 'prop') => {
-        const prompt = type === 'background' ? bgPrompt : type === 'subject' ? subjectPrompt : propPrompt;
+        const prompt = type === 'background' ? bgPrompt : type === 'subject' ? subjectPrompt : '';
         if (!prompt) return;
 
         setIsGenerating(true);

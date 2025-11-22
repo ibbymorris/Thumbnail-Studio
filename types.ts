@@ -5,9 +5,12 @@ export type ToolType = 'generator' | 'face-fixer' | 'style-transfer';
 export type ThumbnailStyle = 'reaction' | 'gaming' | 'minimalist' | 'tech' | 'vlog' | 'cinematic';
 export type AspectRatio = '16:9' | '9:16' | '1:1';
 export type Emotion = 'surprised' | 'happy' | 'angry' | 'serious' | 'confused' | 'neutral' | 'fearful' | 'laughing' | 'disgusted' | 'skeptical' | 'sad' | 'tired';
+export type CompositionType = 'classic-right' | 'classic-left' | 'versus' | 'object-center' | 'cinematic-wide';
+export type VariantStrategy = 'emotion' | 'background' | 'color' | 'mix' | 'none';
 
 export interface FileWithPreview extends File {
   preview: string;
+  source?: 'ai' | 'upload';
 }
 
 export interface ToolData {
@@ -27,7 +30,8 @@ export interface BrandKit {
 
 // Wizard Types
 export type WizardMode = 'fromScratch' | 'remix';
-export type WizardStep = 'idea' | 'remixAnalysis' | 'stage' | 'action' | 'polish';
+// Removed 'action' as it is merged into 'stage'
+export type WizardStep = 'idea' | 'remixAnalysis' | 'stage' | 'composition' | 'polish';
 
 // Remix Analysis Data (Mocked API Response)
 export interface RemixAnalysis {
@@ -103,8 +107,13 @@ export interface GenerationConfig {
   emotion?: Emotion;
   emotionIntensity?: number;
   pose?: string;
+  composition?: CompositionType; // New composition field
   brandKit?: BrandKit;
   elements?: string[];
+  
+  // Polish Options
+  variantStrategy?: VariantStrategy;
+  generateShorts?: boolean;
 }
 
 export interface InspirationItem {

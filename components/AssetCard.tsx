@@ -33,6 +33,7 @@ export const AssetCard = ({ type, title, description, icon, mode, setMode, image
     const [previews, setPreviews] = useState<string[]>([]);
     const [isGeneratingPreviews, setIsGeneratingPreviews] = useState(false);
     const [selectedBgStyle, setSelectedBgStyle] = useState(backgroundStyles[0]);
+    const [isDragging, setIsDragging] = useState(false);
 
     const handleGeneratePreviews = async () => {
         if (!window.aistudio) return;
@@ -66,8 +67,35 @@ export const AssetCard = ({ type, title, description, icon, mode, setMode, image
         setMode('upload');
     }
 
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            const file = e.dataTransfer.files[0];
+            if (file.type.startsWith('image/')) {
+                const fileWithPreview = Object.assign(file, { preview: URL.createObjectURL(file) });
+                setImage(fileWithPreview);
+                setMode('upload');
+            }
+        }
+    };
+
     return (
-        <div className="bg-[#1c1e20] rounded-2xl border border-[#ffffff1a] overflow-hidden flex flex-col h-[32rem] shadow-lg transition-all hover:border-[#ffffff33]">
+        <div className={`bg-[#1c1e20] rounded-2xl border overflow-hidden flex flex-col h-[32rem] shadow-lg transition-all ${isDragging ? 'border-[#ff0000] ring-2 ring-[#ff0000]/20' : 'border-[#ffffff1a] hover:border-[#ffffff33]'}`}>
             <div className="p-4 border-b border-[#ffffff0d] flex justify-between items-center bg-[#151618]">
                 <div className="flex flex-col">
                     <span className="font-bold text-sm flex items-center gap-2 text-gray-200">
@@ -89,26 +117,33 @@ export const AssetCard = ({ type, title, description, icon, mode, setMode, image
                 {mode === 'upload' ? (
                     <div 
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-full h-full cursor-pointer relative"
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`w-full h-full cursor-pointer relative transition-colors ${isDragging ? 'bg-[#ff0000]/10' : ''}`}
                     >
                         {image ? (
                             <>
                                 <img src={image.preview} className="w-full h-full object-cover" alt="preview" />
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                <div className={`absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center ${isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                                     <span className="bg-black/60 px-3 py-1.5 rounded-lg text-xs font-bold text-white backdrop-blur">
-                                        {isRemix ? 'Swap Image' : 'Change Image'}
+                                        {isDragging ? 'Drop to Swap' : (isRemix ? 'Swap Image' : 'Change Image')}
                                     </span>
                                 </div>
                             </>
                         ) : (
                             <>
                                 <img src={placeholderUrl} className="w-full h-full object-cover opacity-30 transition-opacity group-hover:opacity-20" alt="placeholder" />
-                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
-                                    <div className="w-16 h-16 rounded-full bg-[#ff0000] flex items-center justify-center mb-3 shadow-lg shadow-red-900/30 hover:scale-110 transition-transform">
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 pointer-events-none">
+                                    <div className={`w-16 h-16 rounded-full bg-[#ff0000] flex items-center justify-center mb-3 shadow-lg shadow-red-900/30 transition-transform ${isDragging ? 'scale-125' : 'group-hover:scale-110'}`}>
                                         <PlusIcon className="size-8 text-white" />
                                     </div>
-                                    <span className="text-sm font-bold text-white drop-shadow-md block">Upload {title}</span>
-                                    <span className="text-[10px] font-medium text-white/70 mt-1">(Photo or Sketch)</span>
+                                    <span className="text-sm font-bold text-white drop-shadow-md block">
+                                        {isDragging ? 'Drop Image Here' : `Upload ${title}`}
+                                    </span>
+                                    <span className="text-[10px] font-medium text-white/70 mt-1">
+                                        {isDragging ? '(Release to upload)' : '(Drag & Drop, Photo or Sketch)'}
+                                    </span>
                                 </div>
                             </>
                         )}
